@@ -1,0 +1,281 @@
+# Task5
+import javafx.util.Pair;
+
+import java.io.*;
+
+import java.nio.CharBuffer;
+
+import java.util.*;
+
+/**
+ * Created by Natalia on 28.05.2015.
+ */
+public class Interpretator {
+   private Scanner in = new Scanner(System.in);
+    private  PrintWriter out = new PrintWriter(System.out);
+
+    public static final String root = "";
+    private static File currentDir = new File(root);
+
+    public static void main(String[] args) throws IOException {
+        Scanner in = new Scanner(System.in);
+
+        Interpretator interpretator = new Interpretator();
+        String command = "";
+        Map<String,String> map = new HashMap<String,String>();
+        while (in.hasNextLine()) {
+            command = in.nextLine();
+
+            if(command.contains("=")){
+                String[] arrayEquals = command.split("=");
+                map.put(arrayEquals[0].trim(),arrayEquals[1].trim());
+            }else {
+                String[] commandArray = command.split(" ");
+                command = "";
+                for (int i = 0; i < commandArray.length; i++) {
+                    if (map.get(commandArray[i]) != null) {
+                        commandArray[i] = map.get(commandArray[i]);
+                    }
+                    command = command +" " +commandArray[i];
+                }
+                interpretator.run(command);
+            }
+
+        }
+    }
+
+    public void run(String str) throws IOException {
+
+            Pars pars = new Pars();
+            List<Pair<ConsoleCom, String>> list = pars.parser(str.trim());
+            for (Pair<ConsoleCom, String> pair : list) {
+                ConsoleCom cmd = pair.getKey();
+                String param = pair.getValue();
+                cmd.consoleCom(param);
+            }
+
+            FileFlowOne fileFlowOne = new FileFlowOne();
+            FileFlowTwo fileFlowTwo = new FileFlowTwo();
+           // fileFlowOne.fileWriter(str);
+         //   fileFlowTwo.fileWriter(str);
+    }
+
+    public class ConsoleComFactory{
+        public ConsoleCom newInstance(String str) {
+            ConsoleCom cmd = null;
+            switch (str) {
+                case "cd":
+                    cmd = new Cd();
+                    break;
+                case "ls":
+                   cmd= new Ls();
+                   break;
+                case "pwd":
+                    cmd = new Pwd();
+                    break;
+                case "du":
+                    cmd = new Du();
+                    break;
+                case "df":
+                    cmd = new Df();
+                    break;
+                case "head":
+                    cmd = new Head();
+                    break;
+                case "tool":
+                    cmd = new Tool();
+                    break;
+            }
+            return cmd;
+        }
+    }
+    public class Pars{
+        public List<Pair<ConsoleCom, String>> parser(String str){
+            List<Pair<ConsoleCom, String>> list = new ArrayList<>();
+
+            for (String args : str.split(" && ")) {
+                    list.add(parseCommand(args));
+            }
+            return list;
+        }
+
+
+        public Pair<ConsoleCom, String> parseCommand(String str) {
+            String[] args = str.split(" ", 2);
+
+            ConsoleCom cmd = new ConsoleComFactory().newInstance(args[0]);
+            String param = (args.length == 2) ? args[1] : null;
+            return new Pair<>(cmd, param);
+        }
+    }
+
+    public  class Union implements OperatorAll{
+        @Override
+        public int Operator(Pair<ConsoleCom, String> leftPart ,  Pair<ConsoleCom, String> rightPart) throws Exception {
+            ConsoleCom lCmd = leftPart.getKey();
+            String lParam = leftPart.getValue();
+
+            ConsoleCom rCmd = rightPart.getKey();
+            String rParam = rightPart.getValue();
+
+            int result = lCmd.consoleCom(lParam);
+            if (result == 0)
+                return rCmd.consoleCom(rParam);
+            return result;
+        }
+    }
+
+    public class Pipe implements OperatorAll{
+        @Override
+        public int Operator(Pair<ConsoleCom, String> lhs ,  Pair<ConsoleCom, String> rhs) throws Exception {
+            ConsoleCom lCmd = lhs.getKey();
+            String lParam = lhs.getValue();
+            ConsoleCom rCmd = rhs.getKey();
+            String rParam = rhs.getValue();
+
+            StringWriter sw = new StringWriter();
+            out = new PrintWriter(sw);
+
+            int result = lCmd.consoleCom(lParam);
+            out = new PrintWriter(System.out, true);
+
+            in = new Scanner(sw.toString());
+            if (result == 0)
+                return rCmd.consoleCom(rParam);
+            in.close();
+            in = new Scanner(System.in);
+            return result;
+        }
+    }
+
+
+    public static class Cd implements ConsoleCom {
+        @Override
+        public int consoleCom(String param) {
+            System.out.println( currentDir = new File(currentDir, param));
+            return 0;
+        }
+    }
+
+    public  class Ls implements ConsoleCom {
+        @Override
+        public int consoleCom(String param) {
+            File par = (param == null) ? currentDir : new File(param);
+            File[] dir =  par.listFiles();
+            for(File f: dir){
+               System.out.println(f.getName());
+            }
+
+            return 0;
+        }
+    }
+
+    public static class Pwd implements ConsoleCom {
+        @Override
+        public int consoleCom(String param) {
+
+            File par = (param == null) ? currentDir : new File(param);
+            String path = par.getAbsolutePath();
+                System.out.println(path);
+            return 0;
+            }
+        }
+    public static class Du implements ConsoleCom{
+        @Override
+        public int consoleCom(String param) {
+
+            File dir = (param == null) ? currentDir : new File(param);
+            long size;
+            size = currentDir.length();
+            System.out.println(size);
+            return 1;
+          }
+
+        }
+    public class Df implements ConsoleCom{
+
+
+        @Override
+        public int consoleCom(String param) {
+            Ls ls = new Ls();
+            Du du = new Du();
+            ls.consoleCom(param);
+            du.consoleCom(param);
+            return 0;
+        }
+    }
+
+    public static class Tool implements ConsoleCom{
+        @Override
+        public int consoleCom(String param) throws IOException {
+            FileReader file = new FileReader(param);
+            CharBuffer buf = CharBuffer.allocate(10000);
+            file.read(buf);
+            file.close();
+            String current_string = "";
+            List<String> strings = new ArrayList<String>();
+            for (char ch: buf.array())
+            {
+                current_string += ch;
+                if (ch == '\n')
+                {
+                    strings.add(current_string);
+                    current_string = "";
+                }
+            }
+            Collections.reverse(strings);
+            System.out.println(strings);
+            return 0;  }}
+
+    public static class Head implements ConsoleCom {
+
+        @Override
+        public int consoleCom(String param) throws IOException {
+
+            return 0;
+        }}
+    public class FileFlowOne implements FileWrite{
+        @Override
+        public void fileWriter(String text) {
+                String[] argument = text.split(">");
+                String filename = argument[1];
+                String textForWriting = argument[0];
+                File file = new File(filename);
+                try {
+                    if (!file.exists()) {
+                        file.createNewFile();
+                    }
+
+                    PrintWriter out = new PrintWriter(file.getAbsoluteFile());
+
+                    try {
+
+                        out.print(textForWriting);
+                    } finally {
+
+                        out.close();
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+
+
+            }
+        }
+    }
+    public class FileFlowTwo implements FileWrite{
+
+        @Override
+        public void fileWriter(String text) throws FileNotFoundException {
+            if(text.contains(">>")){
+                String[] argument = text.split(">>");
+                String filename = argument[1];
+                String textForWriting = argument[0];
+                PrintStream printStream = new PrintStream(new FileOutputStream(filename, true), true);
+                printStream.println(textForWriting);
+                printStream.close();
+            }
+
+        }
+    }
+}
+
