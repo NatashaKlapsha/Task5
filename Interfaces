@@ -1,0 +1,17 @@
+
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+public interface ConsoleCom {
+public int consoleCom( String param ) throws IOException;
+}
+
+public interface FileWrite {
+    public void fileWriter(String text) throws FileNotFoundException;
+}
+public interface OperatorAll {
+    public  int Operator(Pair<ConsoleCom, String> lhs, Pair<ConsoleCom, String> rhs) throws Exception;
+
+
+}
